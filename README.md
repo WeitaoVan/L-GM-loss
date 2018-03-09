@@ -26,4 +26,29 @@ Extensive experiments on various recognition benchmarks like MNIST, CIFAR, Image
   ./train.sh 0 simple  # 0 is the GPU id, simple is the folder containing network definitions and solver
 ```
 
+## Layer details
+- Specifying &alpha; and &lambda;, which is *margin_mul* and *center_coef* in the layer param, respectively.  
+```
+    margin_mul {
+      policy: STEPUP
+      value: 0.1
+      step: 5000 
+      gamma: 2
+      max: 0.3 
+}
+```
+This specifies a gradually growing value for &alpha;, which is helpful for training.
+
+- other indicators
+```
+update_sigma: false
+```
+Fix the variances to initial values (1.0).
+
+```
+isotropic: true
+```
+The variances of different dimensions are identical.
+  
+  
 More contents under construction ......
