@@ -1,5 +1,5 @@
 # L-GM-loss
-Implementation of our CVPR 2018 paper "Rethinking Feature Distribution for Loss Functions in Image Classification".  
+Implementation of our CVPR 2018 paper "[Rethinking Feature Distribution for Loss Functions in Image Classification](http://arxiv.org/abs/1803.02988)".  
 Paper authors: Weitao Wan, Yuanyi Zhong, Tianpeng Li, Jiansheng Chen.
 
 We implemented it in Caffe. I also have a tensorflow implementation but it hasn't been fully tested yet.
