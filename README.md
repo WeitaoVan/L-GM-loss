@@ -25,3 +25,5 @@ Extensive experiments on various recognition benchmarks like MNIST, CIFAR, Image
 ```
   ./train.sh 0 simple  # 0 is the GPU id, simple is the folder containing network definitions and solver
 ```
+
+More contents under construction ......
