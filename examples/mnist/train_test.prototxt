@@ -1,0 +1,300 @@
+#
+name: "LeNet+"
+layer {
+  name: "mnist"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "examples/mnist/mnist_train_lmdb"
+    batch_size: 64
+    backend: LMDB
+  }
+}
+layer {
+  name: "mnist"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "examples/mnist/mnist_test_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
+}
+
+##########################################
+
+layer {
+  name: "conv1"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv1"
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    pad: 0
+    weight_filler { type: "xavier" }
+  }
+}#24
+layer {
+  name: "conv1b"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv1b"
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 32
+    kernel_size: 3
+    stride: 1
+    pad: 1
+    weight_filler { type: "xavier" }
+  }
+}#24
+
+layer {
+  name: "pool1"
+  type: "Pooling"
+  bottom: "conv1b"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}#12
+layer {
+  name: "relu1"
+  type: "PReLU"
+  # type: "ReLU"
+  bottom: "pool1"
+  top: "pool1"
+  param { lr_mult: 1 decay_mult: 1 }
+  # relu_param {
+    # negative_slope: 0.01
+  # }
+}
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "pool1"
+  top: "conv2"
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64
+    kernel_size: 3
+    stride: 1
+    pad: 1
+    weight_filler { type: "xavier" }
+  }
+}#12
+layer {
+  name: "conv2b"
+  type: "Convolution"
+  bottom: "conv2"
+  top: "conv2b"
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64
+    kernel_size: 3
+    stride: 1
+    pad: 1
+    weight_filler { type: "xavier" }
+  }
+}
+
+layer {
+  name: "pool2"
+  type: "Pooling"
+  bottom: "conv2b"
+  top: "pool2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}#6
+layer {
+  name: "relu2"
+  type: "PReLU"
+  # type: "ReLU"
+  bottom: "pool2"
+  top: "pool2"
+  param { lr_mult: 1 decay_mult: 1 }
+  # relu_param {
+    # negative_slope: 0.01
+  # }
+}
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "pool2"
+  top: "conv3"
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 128
+    kernel_size: 3
+    stride: 1
+    pad: 1
+    weight_filler { type: "xavier" }
+  }
+}
+layer {
+  name: "pool3"
+  type: "Pooling"
+  bottom: "conv3"
+  top: "pool3"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "relu3"
+  type: "PReLU"
+  # type: "ReLU"
+  bottom: "pool3"
+  top: "pool3"
+  param { lr_mult: 1 decay_mult: 1 }
+  # relu_param {
+    # negative_slope: 0.01
+  # }
+}
+layer {
+  name: "ip1"
+  type: "InnerProduct"
+  bottom: "pool3"
+  top: "ip1"
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 0 }
+  inner_product_param {
+    num_output: 100 #2 #200
+    weight_filler { type: "xavier" }
+  }
+}
+# layer {
+  # name: "relu_ip1"
+  # type: "ReLU"
+  # bottom: "ip1"
+  # top: "ip1"
+# }
+# layer {
+  # name: "drop_ip1"
+  # type: "Dropout"
+  # bottom: "ip1"
+  # top: "ip1"
+  # dropout_param {
+    # dropout_ratio: 0.3
+  # }
+# }
+
+##########################################
+
+# layer {
+  # name: "ip2"
+  # type: "InnerProduct"
+  # bottom: "ip1"
+  # top: "ip2"
+  # param {
+    # lr_mult: 2
+    # decay_mult: 1
+  # }
+  # # param {
+   # # name: "param2"
+   # # lr_mult: 1
+  # # }
+  # inner_product_param {
+    # num_output: 10
+    # weight_filler {
+      # type: "xavier"
+      # #type: "gaussian" std: 1
+    # }
+    # bias_term: false #true
+    # bias_filler {
+      # type: "constant"
+    # }
+  # }
+# }
+
+layer {
+  name: "ip2"
+  bottom: "ip1"
+  bottom: "label"
+  type: "ClassDistance"
+  top: "ip2"
+  param {
+    lr_mult: 0.3 #3 #0.1    # xavier: large for l2, small for ip
+    decay_mult: 1 #1 #0
+  }
+  param { lr_mult: 1 decay_mult: 0 }
+  class_distance_param {
+    num_output: 10
+    weight_filler {
+      type: "xavier"
+      #type: "msra"
+      #type: "gaussian" std: 0.06 #3
+      #type: "constant" value: 1
+    }
+    bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    update_sigma: true
+    margin_mul {
+      policy: STEPUP
+      value: 0.001
+      max: 1
+      gamma: 10
+      step: 1500
+    }
+    margin_add {
+      policy: STEPUP
+      value: 0.001
+      max: 1
+      gamma: 5
+      step: 1000
+    }
+    metric: L2 #IP #L2
+    center_coef: 0.03
+  }
+}
+
+layer {
+  name: "accuracy"
+  type: "Accuracy"
+  bottom: "ip2"
+  bottom: "label"
+  top: "accuracy"
+  #include {
+  #  phase: TEST
+  #}
+}
+
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "ip2"
+  bottom: "label"
+  top: "loss"
+  loss_weight: 1
+}

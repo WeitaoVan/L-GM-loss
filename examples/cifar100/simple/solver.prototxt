@@ -1,0 +1,20 @@
+#
+test_initialization: true
+test_iter: 100
+test_interval: 1000
+base_lr: 0.1
+display: 100
+max_iter: 120000 #20000 #50000 #30000  #60000 #50000
+weight_decay: 0.0005
+snapshot: 1000 #10000
+snapshot_prefix: "simple/snapshot/alpha0.3_lambda0.1_crop_300epc_repeat"
+solver_mode: GPU
+net: "simple/trainval.prototxt"
+lr_policy: "multistep"
+gamma: 0.1
+momentum: 0.9
+stepvalue: 60000 #14000 #10000 #14000
+stepvalue: 90000 #15000 #24000 #14000 #28000 #24000
+#stepvalue: 16000 #18000 #42000 #34000
+type: "Nesterov"
+#type: "SGD"

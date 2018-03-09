@@ -1,0 +1,1 @@
+/media/wwt/860G/data/CIFAR100/train_aug.h5

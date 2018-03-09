@@ -1,0 +1,345 @@
+#include <vector>
+
+#include "caffe/filler.hpp"
+#include "caffe/layers/class_distance_layer.hpp"
+#include "caffe/util/math_functions.hpp"
+
+namespace caffe {
+
+template <typename Dtype>
+static __global__ void compute_top(const int nthreads, const int N_, const int K_,
+    const Dtype *bottom_data, Dtype *top_data, const Dtype *weight) {
+
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int i = index / N_;
+        const int j = index % N_;
+
+        Dtype t = 0;
+        for (int k = 0; k < K_; ++k) {
+            Dtype d = weight[j*K_+k] - bottom_data[i*K_+k];
+            t += d*d;
+        }
+        top_data[i*N_+j] = Dtype(-0.5)*t;
+    }
+}
+
+template <typename Dtype>
+static __global__ void compute_top_bias(const int nthreads, const int N_, const int K_,
+    const Dtype *bottom_data, Dtype *top_data, const Dtype *weight, const Dtype *bias) {
+
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int i = index / N_;
+        const int j = index % N_;
+
+        Dtype t = 0;
+        for (int k = 0; k < K_; ++k) {
+            Dtype d = weight[j*K_+k] - bottom_data[i*K_+k];
+            t += d*d;
+        }
+        top_data[i*N_+j] = Dtype(-0.5)*t + bias[j];
+    }
+}
+
+//compute_top_label<Dtype> << <CAFFE_GET_BLOCKS(M_*N_), CAFFE_CUDA_NUM_THREADS >> >(
+//  M_*N_, N_, K_, bottom_data, top_data, weight, label, margin_coef);
+template <typename Dtype>
+static __global__ void compute_top_label(const int nthreads, const int N_, const int K_,
+    const Dtype *bottom_data, Dtype *top_data, const Dtype *weight,
+    const Dtype *label, const Dtype margin_coef, const Dtype margin0_) {
+
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int i = index / N_;
+        const int j = index % N_;
+
+        Dtype t = 0;
+        for (int k = 0; k < K_; ++k) {
+            //Dtype d = weight[j*K_+k] - bottom_data[i*K_+k];
+            //t += d*d;
+            Dtype d = weight[j*K_ + k] * bottom_data[i*K_ + k];
+            t += d;
+        }
+        if (j == (int)label[i])
+            //top_data[index] = Dtype(-0.5)*(t + margin0_)*margin_coef;
+            top_data[index] = t - margin0_;
+        else
+            top_data[index] = t; //Dtype(-0.5)*t;
+    }
+}
+
+template <typename Dtype>
+static __global__ void compute_top_label_bias(const int nthreads, const int N_, const int K_,
+    const Dtype *bottom_data, Dtype *top_data, const Dtype *weight,
+    const Dtype *label, const Dtype *bias, const Dtype margin_coef) {
+
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int i = index / N_;
+        const int j = index % N_;
+
+        Dtype t = 0;
+        for (int k = 0; k < K_; ++k) {
+            Dtype d = weight[j*K_+k] - bottom_data[i*K_+k];
+            t += d*d;
+        }
+        if (j == (int)label[i])
+            top_data[i*N_+j] = Dtype(-0.5)*t*margin_coef + bias[j];
+        else
+            top_data[i*N_+j] = Dtype(-0.5)*t + bias[j];
+    }
+}
+
+template <typename Dtype>
+void ClassDistanceLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+    const vector<Blob<Dtype>*>& top) {
+
+  const Dtype* bottom_data = bottom[0]->gpu_data();
+  Dtype* top_data = top[0]->mutable_gpu_data();
+  const Dtype* weight = this->blobs_[0]->gpu_data();
+  //Dtype* tmp_data = tmp_.mutable_gpu_data();
+  /*for (int i = 0; i < M_; ++i) {
+      for (int j = 0; j < N_; ++j) {
+          caffe_gpu_sub(K_, weight + j*K_, bottom_data + i*K_, tmp_data);
+          Dtype out;
+          caffe_gpu_dot(K_, tmp_data, tmp_data, &out);
+          top_data[i*N_+j] = Dtype(-0.5)*out;
+      }
+  }*/
+  if (bottom.size() == 2) {
+      const Dtype margin_coef = 1 + margin_;
+      const ClassDistanceParameter& param = this->layer_param_.class_distance_param();
+      if (++iterations_ % param.margin_step() == 0) {
+          margin_ *= param.margin_mult();
+          if (margin_ > param.margin_max())
+              margin_ = param.margin_max();
+          LOG(INFO) << "change margin param to " << margin_;
+      }
+
+      const Dtype* label = bottom[1]->gpu_data();
+      if (bias_term_)
+          compute_top_label_bias<Dtype> << <CAFFE_GET_BLOCKS(M_*N_), CAFFE_CUDA_NUM_THREADS >> >(
+            M_*N_, N_, K_, bottom_data, top_data, weight, label, this->blobs_[1]->gpu_data(), margin_coef);
+      else
+          compute_top_label<Dtype> << <CAFFE_GET_BLOCKS(M_*N_), CAFFE_CUDA_NUM_THREADS >> >(
+            M_*N_, N_, K_, bottom_data, top_data, weight, label, margin_coef, margin0_);
+  }
+  else {
+      if (bias_term_)
+          compute_top_bias<Dtype> << <CAFFE_GET_BLOCKS(M_*N_), CAFFE_CUDA_NUM_THREADS >> >(
+              M_*N_, N_, K_, bottom_data, top_data, weight, this->blobs_[1]->gpu_data());
+      else
+          compute_top<Dtype> << <CAFFE_GET_BLOCKS(M_*N_), CAFFE_CUDA_NUM_THREADS >> >(
+              M_*N_, N_, K_, bottom_data, top_data, weight);
+  }
+}
+
+
+/*template <typename Dtype>
+static __global__ void compute_gradient(const int nthreads, const int N_, const int K_,
+    const Dtype* top_diff, const Dtype *bottom_data, Dtype *bottom_diff,
+    const Dtype *weight, Dtype* weight_diff) {
+
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int i = index / N_;
+        const int j = index % N_;
+
+        Dtype t = top_diff[i*N_+j];
+        for (int k = 0; k < K_; ++k) {
+            Dtype d = weight[j*K_+k] - bottom_data[i*K_+k];
+            weight_diff[j*K_+k] -= d*t;
+            bottom_diff[i*K_+k] += d*t;
+        }
+    }
+}*/
+
+template <typename Dtype>
+static __global__ void compute_gradient_bottom(const int nthreads, const int K_, const int N_,
+    const Dtype* top_diff, const Dtype *bottom_data, Dtype *bottom_diff,
+    const Dtype *weight) {
+
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int i = index / K_;
+        const int k = index % K_;
+
+        Dtype t = 0;
+        for (int j = 0; j < N_; ++j) {
+            t += (weight[j*K_+k] - bottom_data[i*K_+k]) * top_diff[i*N_+j];
+        }
+        bottom_diff[i*K_+k] = t;
+    }
+}
+
+template <typename Dtype>
+static __global__ void compute_gradient_weight(const int nthreads, const int K_, const int M_,
+    const Dtype* top_diff, const Dtype *bottom_data,
+    const Dtype *weight, Dtype* weight_diff) {
+
+    const int N_ = nthreads / K_;
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int j = index / K_;
+        const int k = index % K_;
+
+        Dtype t = 0;
+        for (int i = 0; i < M_; ++i) {
+            t += (weight[j*K_+k] - bottom_data[i*K_+k]) * top_diff[i*N_+j];
+        }
+        weight_diff[j*K_+k] -= t;
+    }
+}
+
+//compute_gradient_bottom_label<Dtype> << <CAFFE_GET_BLOCKS(M_*K_), CAFFE_CUDA_NUM_THREADS >> >(
+//    M_*K_, K_, N_, top_diff, bottom_data, bottom_diff, weight, label, margin_coef);
+template <typename Dtype>
+static __global__ void compute_gradient_bottom_label(const int nthreads, const int K_, const int N_,
+    const Dtype* top_diff, const Dtype *bottom_data, Dtype *bottom_diff,
+    const Dtype *weight, const Dtype *label, const Dtype margin_coef) {
+
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int i = index / K_;
+        const int k = index % K_;
+
+        Dtype t = 0;
+        for (int j = 0; j < N_; ++j) {
+            if (j == (int)label[i])
+                //t += margin_coef * (weight[j*K_+k] - bottom_data[index]) * top_diff[i*N_+j];
+                t += margin_coef * (weight[j*K_ + k]) * top_diff[i*N_ + j];
+            else
+                //t += (weight[j*K_+k] - bottom_data[index])*top_diff[i*N_+j];
+                t += (weight[j*K_ + k])*top_diff[i*N_ + j];
+        }
+        bottom_diff[index] = t;
+    }
+}
+
+//compute_gradient_weight_label<Dtype> << <CAFFE_GET_BLOCKS(N_*K_), CAFFE_CUDA_NUM_THREADS >> >(
+//    N_*K_, K_, M_, top_diff, bottom_data, weight, weight_diff, label, margin_coef);
+template <typename Dtype>
+static __global__ void compute_gradient_weight_label(const int nthreads, const int K_, const int M_,
+    const Dtype* top_diff, const Dtype *bottom_data,
+    const Dtype *weight, Dtype* weight_diff, const Dtype* label, const Dtype margin_coef) {
+
+    const int N_ = nthreads / K_;
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int j = index / K_;
+        const int k = index % K_;
+
+        Dtype t = 0;
+        for (int i = 0; i < M_; ++i) {
+            if (j == (int)label[i])
+                //t += margin_coef * (weight[index] - bottom_data[i*K_+k]) * top_diff[i*N_+j];
+                t += margin_coef * (bottom_data[i*K_ + k]) * top_diff[i*N_ + j];
+            else
+                //t += (weight[index] - bottom_data[i*K_+k]) * top_diff[i*N_+j];
+                t += (bottom_data[i*K_ + k]) * top_diff[i*N_ + j];
+        }
+        //weight_diff[index] -= t;
+        weight_diff[index] += t;
+    }
+}
+
+/*template <typename Dtype>
+static __global__ void compute_gradient_weight_label_v2(const int nthreads, const int K_, const int N_,
+    const Dtype* top_diff, const Dtype *bottom_data,
+    const Dtype *weight, Dtype* weight_diff, const Dtype* label, const Dtype margin_coef) {
+
+    //const int M_ = nthreads / K_;
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int i = index / K_;
+        const int k = index % K_;
+
+        Dtype t = 0;
+        int j = (int)label[i];
+        t += margin_coef * (weight[j*K_ + k] - bottom_data[i*K_ + k]) * top_diff[i*N_ + j];
+        weight_diff[j*K_ + k] -= t;
+    }
+}*/
+/*template <typename Dtype>
+static __global__ void compute_gradient_weight_label_v2(const int nthreads, const int K_, const int M_, const int N_,
+    const Dtype* top_diff, const Dtype *bottom_data,
+    const Dtype *weight, Dtype* weight_diff, const Dtype* label, const Dtype margin_coef, const Dtype* used) {
+
+    CUDA_KERNEL_LOOP(index, nthreads) {
+        const int k = index % K_;
+        const int j = (int)used[index / K_];
+
+        Dtype t = 0;
+        for (int i = 0; i < M_; ++i) {
+            if (j == (int)label[i])
+                t += margin_coef * (weight[j*K_ + k] - bottom_data[i*K_ + k]) * top_diff[i*N_ + j];
+            else
+                t += (weight[j*K_ + k] - bottom_data[i*K_ + k]) * top_diff[i*N_ + j];
+        }
+        weight_diff[j*K_ + k] -= t;
+        //weight_diff[j*K_ + k] = t;
+    }
+}*/
+
+template <typename Dtype>
+void ClassDistanceLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
+    const vector<bool>& propagate_down,
+    const vector<Blob<Dtype>*>& bottom) {
+
+  //Dtype* tmp_data = tmp_.mutable_gpu_data();
+  const Dtype* top_diff = top[0]->gpu_diff();
+  const Dtype* bottom_data = bottom[0]->gpu_data();
+  Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
+  const Dtype* weight = this->blobs_[0]->gpu_data();
+  Dtype* weight_diff = this->blobs_[0]->mutable_gpu_diff();
+  
+  caffe_gpu_set(M_*K_, (Dtype)0, bottom_diff);
+  //caffe_gpu_memset()
+
+  /*compute_gradient<Dtype> << <CAFFE_GET_BLOCKS(M_*N_), CAFFE_CUDA_NUM_THREADS >> >(
+      M_*N_, N_, K_, top_diff, bottom_data, bottom_diff, weight, weight_diff);*/
+  
+  if (bottom.size() == 2) {
+      const Dtype margin_coef = 1 + margin_;
+      
+      const Dtype* label = bottom[1]->gpu_data();
+      compute_gradient_bottom_label<Dtype> << <CAFFE_GET_BLOCKS(M_*K_), CAFFE_CUDA_NUM_THREADS >> >(
+          M_*K_, K_, N_, top_diff, bottom_data, bottom_diff, weight, label, margin_coef);
+      compute_gradient_weight_label<Dtype> << <CAFFE_GET_BLOCKS(N_*K_), CAFFE_CUDA_NUM_THREADS >> >(
+          N_*K_, K_, M_, top_diff, bottom_data, weight, weight_diff, label, margin_coef);
+      //compute_gradient_weight_label_v2<Dtype> << <CAFFE_GET_BLOCKS(M_*K_), CAFFE_CUDA_NUM_THREADS >> >(
+      //    M_*K_, K_, N_, top_diff, bottom_data, weight, weight_diff, label, margin_coef);
+      /*Dtype* used = bottom[1]->mutable_cpu_diff();
+      const Dtype* label_cpu = bottom[1]->cpu_data();
+      int V = 0;
+      for (int i = 0; i < M_; ++i) {
+          bool found = false;
+          for (int ii = 0; ii < V; ++ii)
+              if (used[ii] == label_cpu[i]) {
+                  found = true;
+                  break;
+              }
+          if (!found)
+            used[V++] = label_cpu[i];
+      }
+      compute_gradient_weight_label_v2<Dtype> << <CAFFE_GET_BLOCKS(V*K_), CAFFE_CUDA_NUM_THREADS >> >(
+          V*K_, K_, M_, N_, top_diff, bottom_data, weight, weight_diff, bottom[1]->gpu_data(), margin_coef, bottom[1]->gpu_diff());*/
+  }
+  else {
+      compute_gradient_bottom<Dtype> << <CAFFE_GET_BLOCKS(M_*K_), CAFFE_CUDA_NUM_THREADS >> >(
+          M_*K_, K_, N_, top_diff, bottom_data, bottom_diff, weight);
+      compute_gradient_weight<Dtype> << <CAFFE_GET_BLOCKS(N_*K_), CAFFE_CUDA_NUM_THREADS >> >(
+          N_*K_, K_, M_, top_diff, bottom_data, weight, weight_diff);
+  }
+
+  if (bias_term_) {
+      caffe_gpu_gemv<Dtype>(CblasTrans, M_, N_, (Dtype)1., top_diff,
+          bias_multiplier_.gpu_data(), (Dtype)1.,
+          this->blobs_[1]->mutable_gpu_diff());
+  }
+  /*for (int i = 0; i < M_; ++i) {
+    caffe_gpu_set(K_, (Dtype)0, bottom_diff + i*K_);
+    for (int j = 0; j < N_; ++j) {
+      caffe_gpu_sub(K_, weight + j*K_, bottom_data + i*K_, tmp_data);
+      // Gradient with respect to weight
+      caffe_gpu_axpy(K_, -top_diff[i*N_+j], tmp_data, weight_diff + j*K_);
+      // Gradient with respect to bottom data
+      caffe_gpu_axpy(K_, top_diff[i*N_+j], tmp_data, bottom_diff + i*K_);
+    }
+  }*/
+}
+
+INSTANTIATE_LAYER_GPU_FUNCS(ClassDistanceLayer);
+
+}  // namespace caffe
