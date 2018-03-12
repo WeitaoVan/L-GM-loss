@@ -53,6 +53,10 @@ The variances of different dimensions are identical.
   
 More contents under construction ......
 
+## Data
+We've described how the data is pre-processed in our paper. For example, the CIFAR-100 training data (32x32) is padded to 40x40 and then randomly cropped with a 32x32 window for training.  
+In the CIFAR-100 example, we use data in HDF5 format. You can choose other formats, changing the data layer accordingly.
+
 ## Citations
 If you find this work useful, please consider citing it.
 ```
