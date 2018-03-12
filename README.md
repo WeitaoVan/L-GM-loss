@@ -27,7 +27,7 @@ Extensive experiments on various recognition benchmarks like MNIST, CIFAR, Image
 ```
 
 ## Layer details
-- Specifying &alpha; and &lambda;, which is *margin_mul* and *center_coef* in the layer param, respectively.  
+- Specify margin parameter &alpha; and likelihood weight &lambda;, which is *margin_mul* and *center_coef* in the layer param, respectively.  
 ```
     margin_mul {
       policy: STEPUP
