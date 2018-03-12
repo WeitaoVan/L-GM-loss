@@ -52,3 +52,14 @@ The variances of different dimensions are identical.
   
   
 More contents under construction ......
+
+## Citations
+If you find this work useful, please consider citing it.
+```
+@article{LGM2018,
+  title={Rethinking Feature Distribution for Loss Functions in Image Classification},
+  author={Wan, Weitao and Zhong, Yuanyi and Li, Tianpeng and Chen, Jiansheng},
+  journal={arXiv preprint arXiv:1803.02988},
+  year={2018}
+}
+```
