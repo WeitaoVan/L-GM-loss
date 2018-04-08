@@ -37,7 +37,7 @@ Extensive experiments on various recognition benchmarks like MNIST, CIFAR, Image
       max: 0.3 
 }
 ```
-This specifies a gradually growing value for &alpha;, which is helpful for training.
+This specifies a gradually growing value for &alpha; (multiplied by 2 every 5000 iterations, with initial value 0.1 and final maximum value 0.3), which is helpful for training.
 
 - other indicators
 ```
@@ -60,10 +60,10 @@ In the CIFAR-100 example, we use data in HDF5 format. You can choose other forma
 ## Citations
 If you find this work useful, please consider citing it.
 ```
-@article{LGM2018,
+@inproceedings{LGM2018,
   title={Rethinking Feature Distribution for Loss Functions in Image Classification},
   author={Wan, Weitao and Zhong, Yuanyi and Li, Tianpeng and Chen, Jiansheng},
-  journal={arXiv preprint arXiv:1803.02988},
+  booktitle={IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
   year={2018}
 }
 ```
