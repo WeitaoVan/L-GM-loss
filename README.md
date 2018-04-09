@@ -2,12 +2,10 @@
 Implementation of our CVPR 2018 paper "[Rethinking Feature Distribution for Loss Functions in Image Classification](https://arxiv.org/abs/1803.02988)".  
 Paper authors: Weitao Wan, Yuanyi Zhong, Tianpeng Li, Jiansheng Chen.
 
-We implemented it in Caffe. I also have a tensorflow implementation but it hasn't been fully tested yet.
-Now I'm rearranging the code to make it look neat and (hopefully) a bit more beautiful.
-
+Experiments in our paper were carried out through the Caffe implementation.  
+The folder *tensorflow* contains the tensorflow demo (coming very soon).
 
 Code is written by Yuanyi Zhong and Weitao Wan.
-
 
 ## Abstract
 
@@ -20,6 +18,7 @@ Extensive experiments on various recognition benchmarks like MNIST, CIFAR, Image
 <img src="https://github.com/WeitaoVan/L-GM-loss/blob/master/distribution.png" width="800">
 
 ## Instructions
+(For tensorflow, please enter the *tensorflow* folder (coming very soon))  
 - Install this caffe (see [Caffe's Official Guide for Installation](http://caffe.berkeleyvision.org/installation.html) if you are new to Caffe)
 - Examples for CIFAR-100 in ./examples/cifar100
 ```
