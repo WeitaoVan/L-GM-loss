@@ -57,7 +57,7 @@ More contents under construction ......
 We've described how the data is pre-processed in our paper. For example, the CIFAR-100 training data (32x32) is padded to 40x40 with zero pixels and then randomly cropped with a 32x32 window for training.  
 In the CIFAR-100 example, we use data in HDF5 format. You can choose other formats, changing the data layer accordingly.
 
-The CIFAR100 training data (with or without augmentation) and test data are available for download in [Baidu Drive](https://pan.baidu.com/s/1tvB8UVlrgKvzVYJHYXc3Aw)
+The CIFAR100 training data (with or without augmentation) and test data are available for download in [Baidu Drive](https://pan.baidu.com/s/1tvB8UVlrgKvzVYJHYXc3Aw).
 
 ## Citations
 If you find this work useful, please consider citing it.
