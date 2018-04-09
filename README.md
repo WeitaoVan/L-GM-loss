@@ -20,7 +20,7 @@ Extensive experiments on various recognition benchmarks like MNIST, CIFAR, Image
 <img src="https://github.com/WeitaoVan/L-GM-loss/blob/master/distribution.png" width="800">
 
 ## Instructions
-- Install this caffe
+- Install this caffe (see [Caffe's Official Guide for Installation](http://caffe.berkeleyvision.org/installation.html) if you are new to Caffe)
 - Examples for CIFAR-100 in ./examples/cifar100
 ```
   ./train.sh 0 simple  # 0 is the GPU id, simple is the folder containing network definitions and solver
