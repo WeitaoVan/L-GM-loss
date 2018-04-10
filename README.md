@@ -3,7 +3,7 @@ Implementation of our CVPR 2018 paper "[Rethinking Feature Distribution for Loss
 Paper authors: Weitao Wan, Yuanyi Zhong, Tianpeng Li, Jiansheng Chen.
 
 Experiments in our paper were carried out through the Caffe implementation.  
-The folder *tensorflow* contains the tensorflow demo.
+The folder *tensorflow* contains the Tensorflow demo.
 
 Code is written by Yuanyi Zhong and Weitao Wan.
 
